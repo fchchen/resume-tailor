@@ -55,64 +55,54 @@ app.get('/api/scrape', async (req, res) => {
 app.post('/api/tailor', async (req, res) => {
   let { jobTitle, company, jobDescription, jobUrl, engine = 'claude', baseResume, baseCoverLetter } = req.body;
 
-  if (jobUrl && !jobDescription) {
-    try {
-      console.log(`Scraping JD from: ${jobUrl}`);
-      const scraped = await scrapeJD(jobUrl);
-      jobDescription = scraped.description;
-      if (!company && scraped.company) company = scraped.company;
-    } catch (err) {
-      return res.status(400).json({ error: `Failed to fetch JD from URL: ${err.message}` });
-    }
-  }
-
-  // Try to find company name in JD text if missing
-  if (!company && jobDescription) {
-    console.log('Using AI to extract company name from JD...');
-    try {
-      const prompt = buildCompanyExtractionPrompt(jobDescription);
-      // Try codex first, fallback to claude
-      let aiResponse;
-      try {
-        aiResponse = await callAI(prompt, 'codex');
-        console.log(`Codex raw response: "${aiResponse}"`);
-      } catch (e) {
-        console.warn('Codex failed, trying Claude for extraction...');
-        aiResponse = await callAI(prompt, 'claude');
-        console.log(`Claude raw response: "${aiResponse}"`);
-      }
-      
-      if (aiResponse && aiResponse.trim().toUpperCase() !== 'UNKNOWN') {
-        company = aiResponse.trim().split('\n')[0].replace(/["']/g, ''); // Take first line, strip quotes
-        console.log(`AI identified company from JD: "${company}"`);
-      }
-    } catch (err) {
-      console.error('AI company extraction failed completely:', err.message);
-    }
-  }
-
-  if (!company) {
-    console.error('Validation failed: Company name is missing.');
-    return res.status(400).json({ error: 'Company name could not be found. Please enter it manually in the "Company" field.' });
-  }
-
-  if (!jobTitle || !jobDescription) {
-    console.error('Validation failed: jobTitle or jobDescription is missing.');
-    return res.status(400).json({ error: 'Job Title and Job Description are required.' });
-  }
-
   try {
-    // Fetch GitHub repos
-    let githubRepos = '(GitHub fetch skipped)';
-    try {
-      const repos = await fetchPublicRepos();
-      githubRepos = formatReposForPrompt(repos);
-    } catch (err) {
-      console.error('GitHub fetch failed, continuing without repos:', err.message);
+    // Parallelize data gathering
+    const [scrapedData, repoData] = await Promise.all([
+      jobUrl && !jobDescription ? scrapeJD(jobUrl) : Promise.resolve(null),
+      fetchPublicRepos().catch(err => {
+        console.error('GitHub fetch failed:', err.message);
+        return [];
+      })
+    ]);
+
+    if (scrapedData) {
+      jobDescription = scrapedData.description;
+      if (!company && scrapedData.company) company = scrapedData.company;
     }
 
-    // Build prompt and call AI
-    const prompt = buildTailorPrompt({ 
+    const githubRepos = formatReposForPrompt(repoData);
+
+    // Try to find company name in JD text if missing
+    if (!company && jobDescription) {
+      console.log('Using AI to extract company name from JD...');
+      try {
+        const prompt = buildCompanyExtractionPrompt(jobDescription);
+        let aiResponse;
+        try {
+          aiResponse = await callAI(prompt, 'codex');
+        } catch (e) {
+          aiResponse = await callAI(prompt, 'claude');
+        }
+        
+        if (aiResponse && aiResponse.trim().toUpperCase() !== 'UNKNOWN') {
+          company = aiResponse.trim().split('\n')[0].replace(/["']/g, '');
+          console.log(`AI identified company from JD: "${company}"`);
+        }
+      } catch (err) {
+        console.error('AI company extraction failed completely:', err.message);
+      }
+    }
+
+    if (!company) {
+      return res.status(400).json({ error: 'Company name is required.' });
+    }
+
+    if (!jobTitle || !jobDescription) {
+      return res.status(400).json({ error: 'Job Title and Description are required.' });
+    }
+
+    // Build prompt (now async)
+    const prompt = await buildTailorPrompt({ 
       jobTitle, 
       company, 
       jobDescription, 
@@ -122,7 +112,7 @@ app.post('/api/tailor', async (req, res) => {
     });
     
     const engines = Array.isArray(engine) ? engine : [engine];
-    const results = {};
+    const resultsObj = {};
 
     const settlements = await Promise.allSettled(engines.map(async (eng) => {
       console.log(`Calling ${eng} for ${jobTitle} at ${company}...`);
@@ -167,7 +157,6 @@ app.post('/api/tailor', async (req, res) => {
       };
     }));
 
-    const resultsObj = {};
     settlements.forEach((s, i) => {
       const eng = engines[i];
       if (s.status === 'fulfilled') {
