@@ -71,29 +71,34 @@ app.post('/api/tailor', async (req, res) => {
     console.log('Using AI to extract company name from JD...');
     try {
       const prompt = buildCompanyExtractionPrompt(jobDescription);
-      // Try codex first, then claude
+      // Try codex first, fallback to claude
       let aiResponse;
       try {
         aiResponse = await callAI(prompt, 'codex');
+        console.log(`Codex raw response: "${aiResponse}"`);
       } catch (e) {
+        console.warn('Codex failed, trying Claude for extraction...');
         aiResponse = await callAI(prompt, 'claude');
+        console.log(`Claude raw response: "${aiResponse}"`);
       }
       
       if (aiResponse && aiResponse.trim().toUpperCase() !== 'UNKNOWN') {
-        company = aiResponse.trim();
-        console.log(`AI identified company from JD: ${company}`);
+        company = aiResponse.trim().split('\n')[0].replace(/["']/g, ''); // Take first line, strip quotes
+        console.log(`AI identified company from JD: "${company}"`);
       }
     } catch (err) {
-      console.warn('AI company extraction failed:', err.message);
+      console.error('AI company extraction failed completely:', err.message);
     }
   }
 
   if (!company) {
-    return res.status(400).json({ error: 'Company name is required. Please enter it manually or include it in the Job Description.' });
+    console.error('Validation failed: Company name is missing.');
+    return res.status(400).json({ error: 'Company name could not be found. Please enter it manually in the "Company" field.' });
   }
 
   if (!jobTitle || !jobDescription) {
-    return res.status(400).json({ error: 'jobTitle and jobDescription (or jobUrl) are required' });
+    console.error('Validation failed: jobTitle or jobDescription is missing.');
+    return res.status(400).json({ error: 'Job Title and Job Description are required.' });
   }
 
   try {
