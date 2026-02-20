@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { callAI } = require('./lib/ai');
 const { fetchPublicRepos, formatReposForPrompt } = require('./lib/github');
-const { buildTailorPrompt, buildRefinePrompt } = require('./lib/prompt');
+const { buildTailorPrompt, buildRefinePrompt, buildCompanyExtractionPrompt } = require('./lib/prompt');
 const { parseResponse, extractSection } = require('./lib/parser');
 const { buildDocx } = require('./lib/docx-builder');
 const { buildPdf } = require('./lib/pdf-builder');
@@ -33,6 +33,18 @@ app.get('/api/scrape', async (req, res) => {
   try {
     console.log(`Scraping URL: ${url}`);
     const data = await scrapeJD(url);
+    
+    // AI Extraction Fallback for company name
+    if (!data.company && data.description) {
+      console.log('Using AI to extract company name...');
+      const prompt = buildCompanyExtractionPrompt(data.description);
+      const aiResponse = await callAI(prompt, 'codex'); // Use codex as default for this task
+      if (aiResponse && aiResponse.trim().toUpperCase() !== 'UNKNOWN') {
+        data.company = aiResponse.trim();
+        console.log(`AI identified company: ${data.company}`);
+      }
+    }
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -56,10 +68,23 @@ app.post('/api/tailor', async (req, res) => {
 
   // Try to find company name in JD text if missing
   if (!company && jobDescription) {
-    const companyMatch = jobDescription.match(/(?:Company|Employer|Organization|At):\s*([^\n\r.]+)/i);
-    if (companyMatch) {
-      company = companyMatch[1].trim();
-      console.log(`Auto-detected company from JD: ${company}`);
+    console.log('Using AI to extract company name from JD...');
+    try {
+      const prompt = buildCompanyExtractionPrompt(jobDescription);
+      // Try codex first, then claude
+      let aiResponse;
+      try {
+        aiResponse = await callAI(prompt, 'codex');
+      } catch (e) {
+        aiResponse = await callAI(prompt, 'claude');
+      }
+      
+      if (aiResponse && aiResponse.trim().toUpperCase() !== 'UNKNOWN') {
+        company = aiResponse.trim();
+        console.log(`AI identified company from JD: ${company}`);
+      }
+    } catch (err) {
+      console.warn('AI company extraction failed:', err.message);
     }
   }
 
