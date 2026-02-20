@@ -65,50 +65,58 @@ app.post('/api/tailor', async (req, res) => {
     const engines = Array.isArray(engine) ? engine : [engine];
     const results = {};
 
-    await Promise.all(engines.map(async (eng) => {
+    const settlements = await Promise.allSettled(engines.map(async (eng) => {
       console.log(`Calling ${eng} for ${jobTitle} at ${company}...`);
-      try {
-        const response = await callAI(prompt, eng);
-        const { resume, coverLetter } = parseResponse(response);
-        
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const safeCompany = company.replace(/[^a-zA-Z0-9]/g, '_');
-        const resumeFilename = `resume_${eng}_${safeCompany}_${timestamp}.docx`;
-        const resumePdfName = `resume_${eng}_${safeCompany}_${timestamp}.pdf`;
-        const coverLetterFilename = `cover_letter_${eng}_${safeCompany}_${timestamp}.docx`;
-        const coverLetterPdfName = `cover_letter_${eng}_${safeCompany}_${timestamp}.pdf`;
+      const response = await callAI(prompt, eng);
+      const { resume, coverLetter } = parseResponse(response);
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const safeCompany = company.replace(/[^a-zA-Z0-9]/g, '_');
+      const resumeFilename = `resume_${eng}_${safeCompany}_${timestamp}.docx`;
+      const resumePdfName = `resume_${eng}_${safeCompany}_${timestamp}.pdf`;
+      const coverLetterFilename = `cover_letter_${eng}_${safeCompany}_${timestamp}.docx`;
+      const coverLetterPdfName = `cover_letter_${eng}_${safeCompany}_${timestamp}.pdf`;
 
-        const resumeBuffer = await buildDocx(resume, `Resume - ${company} (${eng})`);
-        fs.writeFileSync(path.join(OUTPUT_DIR, resumeFilename), resumeBuffer);
+      const resumeBuffer = await buildDocx(resume, `Resume - ${company} (${eng})`);
+      fs.writeFileSync(path.join(OUTPUT_DIR, resumeFilename), resumeBuffer);
 
-        const resumePdfBuffer = await buildPdf(resume, `Resume - ${company} (${eng})`);
-        fs.writeFileSync(path.join(OUTPUT_DIR, resumePdfName), resumePdfBuffer);
+      const resumePdfBuffer = await buildPdf(resume, `Resume - ${company} (${eng})`);
+      fs.writeFileSync(path.join(OUTPUT_DIR, resumePdfName), resumePdfBuffer);
 
-        let clFilename = null;
-        let clPdfName = null;
-        if (coverLetter) {
-          const coverLetterBuffer = await buildDocx(coverLetter, `Cover Letter - ${company} (${eng})`);
-          fs.writeFileSync(path.join(OUTPUT_DIR, coverLetterFilename), coverLetterBuffer);
-          clFilename = coverLetterFilename;
+      let clFilename = null;
+      let clPdfName = null;
+      if (coverLetter) {
+        const coverLetterBuffer = await buildDocx(coverLetter, `Cover Letter - ${company} (${eng})`);
+        fs.writeFileSync(path.join(OUTPUT_DIR, coverLetterFilename), coverLetterBuffer);
+        clFilename = coverLetterFilename;
 
-          const coverLetterPdfBuffer = await buildPdf(coverLetter, `Cover Letter - ${company} (${eng})`);
-          fs.writeFileSync(path.join(OUTPUT_DIR, coverLetterPdfName), coverLetterPdfBuffer);
-          clPdfName = coverLetterPdfName;
-        }
+        const coverLetterPdfBuffer = await buildPdf(coverLetter, `Cover Letter - ${company} (${eng})`);
+        fs.writeFileSync(path.join(OUTPUT_DIR, coverLetterPdfName), coverLetterPdfBuffer);
+        clPdfName = coverLetterPdfName;
+      }
 
-        results[eng] = {
+      return {
+        engine: eng,
+        data: {
           resume,
           coverLetter,
           resumeFilename,
           resumePdfName,
           coverLetterFilename: clFilename,
           coverLetterPdfName: clPdfName
-        };
-      } catch (err) {
-        console.error(`Error with engine ${eng}:`, err.message);
-        results[eng] = { error: err.message };
-      }
+        }
+      };
     }));
+
+    settlements.forEach((s, i) => {
+      const eng = engines[i];
+      if (s.status === 'fulfilled') {
+        results[s.value.engine] = s.value.data;
+      } else {
+        console.error(`Error with engine ${eng}:`, s.reason.message);
+        results[eng] = { error: s.reason.message };
+      }
+    });
 
     res.json({ results });
   } catch (err) {
