@@ -167,7 +167,8 @@ app.post('/api/tailor', async (req, res) => {
       };
     }));
 
-    results.forEach((s, i) => {
+    const resultsObj = {};
+    settlements.forEach((s, i) => {
       const eng = engines[i];
       if (s.status === 'fulfilled') {
         resultsObj[s.value.engine] = s.value.data;
