@@ -54,8 +54,17 @@ app.post('/api/tailor', async (req, res) => {
     }
   }
 
+  // Try to find company name in JD text if missing
+  if (!company && jobDescription) {
+    const companyMatch = jobDescription.match(/(?:Company|Employer|Organization|At):\s*([^\n\r.]+)/i);
+    if (companyMatch) {
+      company = companyMatch[1].trim();
+      console.log(`Auto-detected company from JD: ${company}`);
+    }
+  }
+
   if (!company) {
-    return res.status(400).json({ error: 'Company name is required. Please enter it manually.' });
+    return res.status(400).json({ error: 'Company name is required. Please enter it manually or include it in the Job Description.' });
   }
 
   if (!jobTitle || !jobDescription) {

@@ -82,8 +82,9 @@ form.addEventListener('submit', async (e) => {
 
   const engines = Array.from(document.querySelectorAll('input[name="engine"]:checked')).map(cb => cb.value);
 
-  if (!jobTitle || !company || (!jobDescription && !jobUrl)) {
-    showError('Please provide job title, company, and either a description or a URL.');
+  // Validation: Job Title and (JD or URL) are strictly required.
+  if (!jobTitle || (!jobDescription && !jobUrl)) {
+    showError('Please provide a Job Title and either a Job Description or a Job URL.');
     return;
   }
 
