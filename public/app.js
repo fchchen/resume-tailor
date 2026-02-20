@@ -117,6 +117,7 @@ form.addEventListener('submit', async (e) => {
     if (!res.ok) throw new Error(data.error || 'Generation failed');
 
     engineResults = data.results;
+    if (data.company) companyInput.value = data.company;
     showAllResults(engineResults);
   } catch (err) {
     showError(err.message);

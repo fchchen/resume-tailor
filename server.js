@@ -167,17 +167,17 @@ app.post('/api/tailor', async (req, res) => {
       };
     }));
 
-    settlements.forEach((s, i) => {
+    results.forEach((s, i) => {
       const eng = engines[i];
       if (s.status === 'fulfilled') {
-        results[s.value.engine] = s.value.data;
+        resultsObj[s.value.engine] = s.value.data;
       } else {
         console.error(`Error with engine ${eng}:`, s.reason.message);
-        results[eng] = { error: s.reason.message };
+        resultsObj[eng] = { error: s.reason.message };
       }
     });
 
-    res.json({ results });
+    res.json({ results: resultsObj, company });
   } catch (err) {
     console.error('Tailor error:', err);
     res.status(500).json({ error: err.message });
