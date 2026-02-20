@@ -25,6 +25,20 @@ app.get('/api/data-files', (req, res) => {
   res.json({ files });
 });
 
+// GET /api/scrape — fetch JD and metadata
+app.get('/api/scrape', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url is required' });
+
+  try {
+    console.log(`Scraping URL: ${url}`);
+    const data = await scrapeJD(url);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/tailor — generate tailored resume + cover letter
 app.post('/api/tailor', async (req, res) => {
   let { jobTitle, company, jobDescription, jobUrl, engine = 'claude', baseResume, baseCoverLetter } = req.body;
@@ -32,14 +46,20 @@ app.post('/api/tailor', async (req, res) => {
   if (jobUrl && !jobDescription) {
     try {
       console.log(`Scraping JD from: ${jobUrl}`);
-      jobDescription = await scrapeJD(jobUrl);
+      const scraped = await scrapeJD(jobUrl);
+      jobDescription = scraped.description;
+      if (!company && scraped.company) company = scraped.company;
     } catch (err) {
       return res.status(400).json({ error: `Failed to fetch JD from URL: ${err.message}` });
     }
   }
 
-  if (!jobTitle || !company || !jobDescription) {
-    return res.status(400).json({ error: 'jobTitle, company, and jobDescription (or jobUrl) are required' });
+  if (!company) {
+    return res.status(400).json({ error: 'Company name is required. Please enter it manually.' });
+  }
+
+  if (!jobTitle || !jobDescription) {
+    return res.status(400).json({ error: 'jobTitle and jobDescription (or jobUrl) are required' });
   }
 
   try {

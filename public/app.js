@@ -7,6 +7,38 @@ const resultsEl = document.getElementById('results');
 const baseResumeSelect = document.getElementById('baseResume');
 const baseCoverLetterSelect = document.getElementById('baseCoverLetter');
 
+const jobUrlInput = document.getElementById('jobUrl');
+const companyInput = document.getElementById('company');
+const jdTextarea = document.getElementById('jobDescription');
+
+// Auto-fetch JD and Company when URL is pasted
+jobUrlInput.addEventListener('change', async () => {
+  const url = jobUrlInput.value.trim();
+  if (!url) return;
+
+  hideError();
+  const originalLabel = jobUrlInput.previousElementSibling.textContent;
+  jobUrlInput.previousElementSibling.textContent = 'Job URL (Fetching...)';
+
+  try {
+    const res = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    if (data.description) jdTextarea.value = data.description;
+    if (data.company) {
+      companyInput.value = data.company;
+    } else {
+      showError('Could not find company name from URL. Please enter it manually.');
+    }
+  } catch (err) {
+    console.error('Fetch error:', err);
+    showError('Could not auto-fetch from URL. Please enter JD and Company manually.');
+  } finally {
+    jobUrlInput.previousElementSibling.textContent = originalLabel;
+  }
+});
+
 // Current state (map of engine -> data)
 let engineResults = {};
 
