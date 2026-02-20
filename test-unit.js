@@ -45,4 +45,16 @@ try {
   process.exit(1);
 }
 
+console.log('\n--- Testing Company Extraction Prompt ---');
+const { buildCompanyExtractionPrompt } = require('./lib/prompt');
+const extractionPrompt = buildCompanyExtractionPrompt('We are looking for a developer at Google.');
+try {
+  assert(extractionPrompt.includes('Extract the company'), 'Extraction prompt missing instruction');
+  assert(extractionPrompt.includes('Google'), 'Extraction prompt missing JD text');
+  console.log('OK: Extraction prompt correctly built.');
+} catch (err) {
+  console.error('FAIL: Extraction prompt test:', err.message);
+  process.exit(1);
+}
+
 console.log('\n--- All unit tests passed! ---');
