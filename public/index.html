@@ -21,55 +21,45 @@
           <label for="company">Company</label>
           <input type="text" id="company" placeholder="Acme Corp" required>
         </div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
-          <label for="engine">AI Engine</label>
-          <select id="engine">
-            <option value="claude" selected>Claude (default)</option>
-            <option value="codex">Codex</option>
-            <option value="gemini">Gemini</option>
-          </select>
+          <label for="baseResume">Base Resume</label>
+          <select id="baseResume"></select>
+        </div>
+        <div class="form-group">
+          <label for="baseCoverLetter">Base Cover Letter</label>
+          <select id="baseCoverLetter"></select>
         </div>
       </div>
       <div class="form-group">
+        <label>AI Engines (Select multiple for comparison)</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="engine" value="claude" checked> Claude</label>
+          <label><input type="checkbox" name="engine" value="gemini" checked> Gemini</label>
+          <label><input type="checkbox" name="engine" value="codex"> Codex</label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="jobUrl">Job URL (Optional, will fetch JD if provided)</label>
+        <input type="url" id="jobUrl" placeholder="https://example.com/jobs/123">
+      </div>
+      <div class="form-group">
         <label for="jobDescription">Job Description</label>
-        <textarea id="jobDescription" rows="10" placeholder="Paste the full job description here..." required></textarea>
+        <textarea id="jobDescription" rows="5" placeholder="Paste the full job description here... (Not needed if URL is provided)"></textarea>
       </div>
       <button type="submit" id="generate-btn">Generate</button>
     </form>
 
     <div id="loading" class="hidden">
       <div class="spinner"></div>
-      <p>Generating tailored resume and cover letter... ~30-60 seconds</p>
+      <p>Generating tailored documents... This may take a minute.</p>
     </div>
 
     <div id="error" class="hidden"></div>
 
     <div id="results" class="hidden">
-      <div class="results-grid">
-        <div class="result-panel">
-          <div class="panel-header">
-            <h2>Tailored Resume</h2>
-            <a id="resume-download" class="download-btn">Download DOCX</a>
-          </div>
-          <div id="resume-preview" class="preview"></div>
-          <div class="refine-section">
-            <textarea id="resume-feedback" rows="3" placeholder="Feedback: e.g. 'Emphasize more cloud experience' or 'Add Kubernetes to skills'"></textarea>
-            <button class="refine-btn" data-type="resume">Refine Resume</button>
-          </div>
-        </div>
-
-        <div class="result-panel">
-          <div class="panel-header">
-            <h2>Cover Letter</h2>
-            <a id="cover-letter-download" class="download-btn">Download DOCX</a>
-          </div>
-          <div id="cover-letter-preview" class="preview"></div>
-          <div class="refine-section">
-            <textarea id="coverLetter-feedback" rows="3" placeholder="Feedback: e.g. 'Make it more concise' or 'Mention the AWS project'"></textarea>
-            <button class="refine-btn" data-type="coverLetter">Refine Cover Letter</button>
-          </div>
-        </div>
-      </div>
+      <!-- Comparisons will be injected here -->
     </div>
   </div>
 

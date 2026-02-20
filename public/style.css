@@ -38,9 +38,28 @@ form {
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.checkbox-group input {
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .form-group {
@@ -116,10 +135,43 @@ button[type="submit"]:disabled {
 }
 
 /* Results */
+.engine-result {
+  margin-bottom: 3rem;
+  border-top: 2px solid #e5e7eb;
+  padding-top: 2rem;
+}
+
+.engine-title {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #111;
+  text-transform: capitalize;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.engine-title::before {
+  content: "🤖";
+}
+
 .results-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
+}
+
+.download-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.pdf-btn {
+  background: #dc2626 !important;
+}
+
+.pdf-btn:hover {
+  background: #b91c1c !important;
 }
 
 .result-panel {

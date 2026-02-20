@@ -4,10 +4,39 @@ const loadingEl = document.getElementById('loading');
 const errorEl = document.getElementById('error');
 const resultsEl = document.getElementById('results');
 
-// Current state
-let currentResume = '';
-let currentCoverLetter = '';
-let currentEngine = 'claude';
+const baseResumeSelect = document.getElementById('baseResume');
+const baseCoverLetterSelect = document.getElementById('baseCoverLetter');
+
+// Current state (map of engine -> data)
+let engineResults = {};
+
+// Load data files on startup
+async function loadDataFiles() {
+  try {
+    const res = await fetch('/api/data-files');
+    const { files } = await res.json();
+    
+    files.forEach(file => {
+      const opt1 = document.createElement('option');
+      opt1.value = file;
+      opt1.textContent = file;
+      baseResumeSelect.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = file;
+      opt2.textContent = file;
+      baseCoverLetterSelect.appendChild(opt2);
+    });
+
+    // Set defaults
+    if (files.includes('resume.md')) baseResumeSelect.value = 'resume.md';
+    if (files.includes('cover-letter.md')) baseCoverLetterSelect.value = 'cover-letter.md';
+  } catch (err) {
+    console.error('Failed to load data files:', err);
+  }
+}
+
+loadDataFiles();
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -15,28 +44,47 @@ form.addEventListener('submit', async (e) => {
   const jobTitle = document.getElementById('jobTitle').value.trim();
   const company = document.getElementById('company').value.trim();
   const jobDescription = document.getElementById('jobDescription').value.trim();
-  currentEngine = document.getElementById('engine').value;
+  const jobUrl = document.getElementById('jobUrl').value.trim();
+  const baseResume = baseResumeSelect.value;
+  const baseCoverLetter = baseCoverLetterSelect.value;
 
-  if (!jobTitle || !company || !jobDescription) return;
+  const engines = Array.from(document.querySelectorAll('input[name="engine"]:checked')).map(cb => cb.value);
+
+  if (!jobTitle || !company || (!jobDescription && !jobUrl)) {
+    showError('Please provide job title, company, and either a description or a URL.');
+    return;
+  }
+
+  if (engines.length === 0) {
+    showError('Please select at least one AI engine.');
+    return;
+  }
 
   showLoading(true);
   hideError();
   resultsEl.classList.add('hidden');
+  resultsEl.innerHTML = '';
 
   try {
     const res = await fetch('/api/tailor', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobTitle, company, jobDescription, engine: currentEngine })
+      body: JSON.stringify({ 
+        jobTitle, 
+        company, 
+        jobDescription, 
+        jobUrl, 
+        engine: engines,
+        baseResume,
+        baseCoverLetter
+      })
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Generation failed');
 
-    currentResume = data.resume;
-    currentCoverLetter = data.coverLetter;
-
-    showResults(data);
+    engineResults = data.results;
+    showAllResults(engineResults);
   } catch (err) {
     showError(err.message);
   } finally {
@@ -44,67 +92,106 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-// Refine buttons
-document.querySelectorAll('.refine-btn').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const type = btn.dataset.type;
-    const feedbackEl = document.getElementById(`${type}-feedback`);
-    const feedback = feedbackEl.value.trim();
+function showAllResults(results) {
+  resultsEl.innerHTML = '';
+  
+  for (const [engine, data] of Object.entries(results)) {
+    const engineDiv = document.createElement('div');
+    engineDiv.className = 'engine-result';
+    
+    if (data.error) {
+      engineDiv.innerHTML = `
+        <h3 class="engine-title">${engine}</h3>
+        <p class="error">Error: ${data.error}</p>
+      `;
+    } else {
+      engineDiv.innerHTML = `
+        <h3 class="engine-title">${engine}</h3>
+        <div class="results-grid">
+          <div class="result-panel">
+            <div class="panel-header">
+              <h2>Tailored Resume</h2>
+              <div class="download-group">
+                <a href="/api/download/${data.resumeFilename}" class="download-btn">DOCX</a>
+                <a href="/api/download/${data.resumePdfName}" class="download-btn pdf-btn">PDF</a>
+              </div>
+            </div>
+            <div class="preview">${data.resume}</div>
+            <div class="refine-section">
+              <textarea id="refine-resume-${engine}" rows="2" placeholder="Feedback..."></textarea>
+              <button class="refine-btn" onclick="refine('${engine}', 'resume')">Refine</button>
+            </div>
+          </div>
 
-    if (!feedback) return;
-
-    const currentMarkdown = type === 'resume' ? currentResume : currentCoverLetter;
-    if (!currentMarkdown) return;
-
-    btn.disabled = true;
-    btn.textContent = 'Refining...';
-
-    try {
-      const res = await fetch('/api/refine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentMarkdown, feedback, type, engine: currentEngine })
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Refinement failed');
-
-      if (type === 'resume') {
-        currentResume = data.markdown;
-        document.getElementById('resume-preview').textContent = data.markdown;
-        document.getElementById('resume-download').href = `/api/download/${data.filename}`;
-      } else {
-        currentCoverLetter = data.markdown;
-        document.getElementById('cover-letter-preview').textContent = data.markdown;
-        document.getElementById('cover-letter-download').href = `/api/download/${data.filename}`;
-      }
-
-      feedbackEl.value = '';
-    } catch (err) {
-      showError(err.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = type === 'resume' ? 'Refine Resume' : 'Refine Cover Letter';
+          <div class="result-panel">
+            <div class="panel-header">
+              <h2>Cover Letter</h2>
+              <div class="download-group">
+                ${data.coverLetterFilename ? `
+                  <a href="/api/download/${data.coverLetterFilename}" class="download-btn">DOCX</a>
+                  <a href="/api/download/${data.coverLetterPdfName}" class="download-btn pdf-btn">PDF</a>
+                ` : ''}
+              </div>
+            </div>
+            <div class="preview">${data.coverLetter || '(No cover letter generated)'}</div>
+            <div class="refine-section">
+              <textarea id="refine-cl-${engine}" rows="2" placeholder="Feedback..."></textarea>
+              <button class="refine-btn" onclick="refine('${engine}', 'coverLetter')">Refine</button>
+            </div>
+          </div>
+        </div>
+      `;
     }
-  });
-});
-
-function showResults(data) {
-  document.getElementById('resume-preview').textContent = data.resume;
-  document.getElementById('cover-letter-preview').textContent = data.coverLetter || '(No cover letter generated)';
-
-  document.getElementById('resume-download').href = `/api/download/${data.resumeFilename}`;
-
-  const clDownload = document.getElementById('cover-letter-download');
-  if (data.coverLetterFilename) {
-    clDownload.href = `/api/download/${data.coverLetterFilename}`;
-    clDownload.style.display = '';
-  } else {
-    clDownload.style.display = 'none';
+    resultsEl.appendChild(engineDiv);
   }
 
   resultsEl.classList.remove('hidden');
 }
+
+async function refine(engine, type) {
+  const feedbackEl = document.getElementById(type === 'resume' ? `refine-resume-${engine}` : `refine-cl-${engine}`);
+  const feedback = feedbackEl.value.trim();
+  if (!feedback) return;
+
+  const currentMarkdown = type === 'resume' ? engineResults[engine].resume : engineResults[engine].coverLetter;
+  
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    const res = await fetch('/api/refine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentMarkdown, feedback, type, engine })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Refinement failed');
+
+    // Update state and UI
+    if (type === 'resume') {
+      engineResults[engine].resume = data.markdown;
+      engineResults[engine].resumeFilename = data.filename;
+      engineResults[engine].resumePdfName = data.pdfName;
+    } else {
+      engineResults[engine].coverLetter = data.markdown;
+      engineResults[engine].coverLetterFilename = data.filename;
+      engineResults[engine].coverLetterPdfName = data.pdfName;
+    }
+    
+    // Refresh the view (simplest way)
+    showAllResults(engineResults);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Refine';
+  }
+}
+
+// Make refine global so onclick works
+window.refine = refine;
 
 function showLoading(show) {
   if (show) {

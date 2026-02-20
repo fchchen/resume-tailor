@@ -6,22 +6,40 @@ const { fetchPublicRepos, formatReposForPrompt } = require('./lib/github');
 const { buildTailorPrompt, buildRefinePrompt } = require('./lib/prompt');
 const { parseResponse, extractSection } = require('./lib/parser');
 const { buildDocx } = require('./lib/docx-builder');
+const { buildPdf } = require('./lib/pdf-builder');
+const { scrapeJD } = require('./lib/scraper');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const OUTPUT_DIR = path.join(__dirname, 'output');
+const DATA_DIR = path.join(__dirname, 'data');
 
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// GET /api/data-files — list files in data directory
+app.get('/api/data-files', (req, res) => {
+  const files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.md'));
+  res.json({ files });
+});
+
 // POST /api/tailor — generate tailored resume + cover letter
 app.post('/api/tailor', async (req, res) => {
-  const { jobTitle, company, jobDescription, engine = 'claude' } = req.body;
+  let { jobTitle, company, jobDescription, jobUrl, engine = 'claude', baseResume, baseCoverLetter } = req.body;
+
+  if (jobUrl && !jobDescription) {
+    try {
+      console.log(`Scraping JD from: ${jobUrl}`);
+      jobDescription = await scrapeJD(jobUrl);
+    } catch (err) {
+      return res.status(400).json({ error: `Failed to fetch JD from URL: ${err.message}` });
+    }
+  }
 
   if (!jobTitle || !company || !jobDescription) {
-    return res.status(400).json({ error: 'jobTitle, company, and jobDescription are required' });
+    return res.status(400).json({ error: 'jobTitle, company, and jobDescription (or jobUrl) are required' });
   }
 
   try {
@@ -35,35 +53,64 @@ app.post('/api/tailor', async (req, res) => {
     }
 
     // Build prompt and call AI
-    const prompt = buildTailorPrompt({ jobTitle, company, jobDescription, githubRepos });
-    console.log(`Calling ${engine} for ${jobTitle} at ${company}...`);
-    const response = await callAI(prompt, engine);
-
-    // Parse response
-    const { resume, coverLetter } = parseResponse(response);
-
-    // Generate DOCX files
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const safeCompany = company.replace(/[^a-zA-Z0-9]/g, '_');
-
-    const resumeFilename = `resume_${safeCompany}_${timestamp}.docx`;
-    const coverLetterFilename = `cover_letter_${safeCompany}_${timestamp}.docx`;
-
-    const resumeBuffer = await buildDocx(resume, `Resume - ${company}`);
-    fs.writeFileSync(path.join(OUTPUT_DIR, resumeFilename), resumeBuffer);
-
-    let coverLetterBuffer = null;
-    if (coverLetter) {
-      coverLetterBuffer = await buildDocx(coverLetter, `Cover Letter - ${company}`);
-      fs.writeFileSync(path.join(OUTPUT_DIR, coverLetterFilename), coverLetterBuffer);
-    }
-
-    res.json({
-      resume,
-      coverLetter,
-      resumeFilename,
-      coverLetterFilename: coverLetter ? coverLetterFilename : null
+    const prompt = buildTailorPrompt({ 
+      jobTitle, 
+      company, 
+      jobDescription, 
+      githubRepos,
+      baseResumeFile: baseResume,
+      baseCoverLetterFile: baseCoverLetter
     });
+    
+    const engines = Array.isArray(engine) ? engine : [engine];
+    const results = {};
+
+    await Promise.all(engines.map(async (eng) => {
+      console.log(`Calling ${eng} for ${jobTitle} at ${company}...`);
+      try {
+        const response = await callAI(prompt, eng);
+        const { resume, coverLetter } = parseResponse(response);
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const safeCompany = company.replace(/[^a-zA-Z0-9]/g, '_');
+        const resumeFilename = `resume_${eng}_${safeCompany}_${timestamp}.docx`;
+        const resumePdfName = `resume_${eng}_${safeCompany}_${timestamp}.pdf`;
+        const coverLetterFilename = `cover_letter_${eng}_${safeCompany}_${timestamp}.docx`;
+        const coverLetterPdfName = `cover_letter_${eng}_${safeCompany}_${timestamp}.pdf`;
+
+        const resumeBuffer = await buildDocx(resume, `Resume - ${company} (${eng})`);
+        fs.writeFileSync(path.join(OUTPUT_DIR, resumeFilename), resumeBuffer);
+
+        const resumePdfBuffer = await buildPdf(resume, `Resume - ${company} (${eng})`);
+        fs.writeFileSync(path.join(OUTPUT_DIR, resumePdfName), resumePdfBuffer);
+
+        let clFilename = null;
+        let clPdfName = null;
+        if (coverLetter) {
+          const coverLetterBuffer = await buildDocx(coverLetter, `Cover Letter - ${company} (${eng})`);
+          fs.writeFileSync(path.join(OUTPUT_DIR, coverLetterFilename), coverLetterBuffer);
+          clFilename = coverLetterFilename;
+
+          const coverLetterPdfBuffer = await buildPdf(coverLetter, `Cover Letter - ${company} (${eng})`);
+          fs.writeFileSync(path.join(OUTPUT_DIR, coverLetterPdfName), coverLetterPdfBuffer);
+          clPdfName = coverLetterPdfName;
+        }
+
+        results[eng] = {
+          resume,
+          coverLetter,
+          resumeFilename,
+          resumePdfName,
+          coverLetterFilename: clFilename,
+          coverLetterPdfName: clPdfName
+        };
+      } catch (err) {
+        console.error(`Error with engine ${eng}:`, err.message);
+        results[eng] = { error: err.message };
+      }
+    }));
+
+    res.json({ results });
   } catch (err) {
     console.error('Tailor error:', err);
     res.status(500).json({ error: err.message });
@@ -97,13 +144,18 @@ app.post('/api/refine', async (req, res) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const typeLabel = type === 'resume' ? 'resume' : 'cover_letter';
     const filename = `${typeLabel}_refined_${timestamp}.docx`;
+    const pdfName = `${typeLabel}_refined_${timestamp}.pdf`;
 
     const buffer = await buildDocx(refined, type === 'resume' ? 'Resume (Refined)' : 'Cover Letter (Refined)');
     fs.writeFileSync(path.join(OUTPUT_DIR, filename), buffer);
 
+    const pdfBuffer = await buildPdf(refined, type === 'resume' ? 'Resume (Refined)' : 'Cover Letter (Refined)');
+    fs.writeFileSync(path.join(OUTPUT_DIR, pdfName), pdfBuffer);
+
     res.json({
       markdown: refined,
-      filename
+      filename,
+      pdfName
     });
   } catch (err) {
     console.error('Refine error:', err);
@@ -111,7 +163,7 @@ app.post('/api/refine', async (req, res) => {
   }
 });
 
-// GET /api/download/:filename — download DOCX
+// GET /api/download/:filename — download file
 app.get('/api/download/:filename', (req, res) => {
   const filename = path.basename(req.params.filename); // prevent path traversal
   const filePath = path.join(OUTPUT_DIR, filename);
@@ -120,7 +172,13 @@ app.get('/api/download/:filename', (req, res) => {
     return res.status(404).json({ error: 'File not found' });
   }
 
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  const ext = path.extname(filename).toLowerCase();
+  if (ext === '.pdf') {
+    res.setHeader('Content-Type', 'application/pdf');
+  } else if (ext === '.docx') {
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  }
+  
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.sendFile(filePath);
 });
