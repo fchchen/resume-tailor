@@ -133,48 +133,38 @@ function showAllResults(results) {
     const engineDiv = document.createElement('div');
     engineDiv.className = 'engine-result';
     
-    if (data.error) {
-      engineDiv.innerHTML = `
-        <h3 class="engine-title">${engine}</h3>
-        <p class="error">Error: ${data.error}</p>
-      `;
-    } else {
-      engineDiv.innerHTML = `
-        <h3 class="engine-title">${engine}</h3>
-        <div class="results-grid">
-          <div class="result-panel">
-            <div class="panel-header">
-              <h2>Tailored Resume</h2>
-              <div class="download-group">
-                <a href="/api/download/${data.resumeFilename}" class="download-btn">DOCX</a>
-                <a href="/api/download/${data.resumePdfName}" class="download-btn pdf-btn">PDF</a>
-              </div>
-            </div>
-            <div class="preview">${data.resume}</div>
-            <div class="refine-section">
-              <textarea id="refine-resume-${engine}" rows="2" placeholder="Feedback..."></textarea>
-              <button class="refine-btn" onclick="refine('${engine}', 'resume')">Refine</button>
-            </div>
-          </div>
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'engine-title';
+    titleEl.textContent = engine;
+    engineDiv.appendChild(titleEl);
 
-          <div class="result-panel">
-            <div class="panel-header">
-              <h2>Cover Letter</h2>
-              <div class="download-group">
-                ${data.coverLetterFilename ? `
-                  <a href="/api/download/${data.coverLetterFilename}" class="download-btn">DOCX</a>
-                  <a href="/api/download/${data.coverLetterPdfName}" class="download-btn pdf-btn">PDF</a>
-                ` : ''}
-              </div>
-            </div>
-            <div class="preview">${data.coverLetter || '(No cover letter generated)'}</div>
-            <div class="refine-section">
-              <textarea id="refine-cl-${engine}" rows="2" placeholder="Feedback..."></textarea>
-              <button class="refine-btn" onclick="refine('${engine}', 'coverLetter')">Refine</button>
-            </div>
-          </div>
-        </div>
-      `;
+    if (data.error) {
+      const errEl = document.createElement('p');
+      errEl.className = 'error';
+      errEl.textContent = `Error: ${data.error}`;
+      engineDiv.appendChild(errEl);
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'results-grid';
+
+      // Resume Panel
+      const resumePanel = createPanel('Tailored Resume', data.resume, [
+        { label: 'DOCX', href: `/api/download/${data.resumeFilename}` },
+        { label: 'PDF', href: `/api/download/${data.resumePdfName}`, className: 'pdf-btn' }
+      ], (feedback) => refine(engine, 'resume', feedback));
+      
+      // Cover Letter Panel
+      const clPanel = createPanel('Cover Letter', data.coverLetter || '(No cover letter generated)', 
+        data.coverLetterFilename ? [
+          { label: 'DOCX', href: `/api/download/${data.coverLetterFilename}` },
+          { label: 'PDF', href: `/api/download/${data.coverLetterPdfName}`, className: 'pdf-btn' }
+        ] : [], 
+        (feedback) => refine(engine, 'coverLetter', feedback)
+      );
+
+      grid.appendChild(resumePanel);
+      grid.appendChild(clPanel);
+      engineDiv.appendChild(grid);
     }
     resultsEl.appendChild(engineDiv);
   }
@@ -182,14 +172,58 @@ function showAllResults(results) {
   resultsEl.classList.remove('hidden');
 }
 
-async function refine(engine, type) {
-  const feedbackEl = document.getElementById(type === 'resume' ? `refine-resume-${engine}` : `refine-cl-${engine}`);
-  const feedback = feedbackEl.value.trim();
+function createPanel(title, content, downloads, refineFn) {
+  const panel = document.createElement('div');
+  panel.className = 'result-panel';
+
+  const header = document.createElement('div');
+  header.className = 'panel-header';
+  const h2 = document.createElement('h2');
+  h2.textContent = title;
+  header.appendChild(h2);
+
+  const dlGroup = document.createElement('div');
+  dlGroup.className = 'download-group';
+  downloads.forEach(dl => {
+    const a = document.createElement('a');
+    a.href = dl.href;
+    a.className = `download-btn ${dl.className || ''}`;
+    a.textContent = dl.label;
+    dlGroup.appendChild(a);
+  });
+  header.appendChild(dlGroup);
+  panel.appendChild(header);
+
+  const preview = document.createElement('div');
+  preview.className = 'preview';
+  preview.textContent = content;
+  panel.appendChild(preview);
+
+  const refineSection = document.createElement('div');
+  refineSection.className = 'refine-section';
+  const textarea = document.createElement('textarea');
+  textarea.rows = 2;
+  textarea.placeholder = 'Feedback...';
+  const btn = document.createElement('button');
+  btn.className = 'refine-btn';
+  btn.textContent = 'Refine';
+  btn.onclick = () => refineFn(textarea.value.trim());
+  
+  refineSection.appendChild(textarea);
+  refineSection.appendChild(btn);
+  panel.appendChild(refineSection);
+
+  return panel;
+}
+
+async function refine(engine, type, feedback) {
   if (!feedback) return;
 
   const currentMarkdown = type === 'resume' ? engineResults[engine].resume : engineResults[engine].coverLetter;
   
+  // Find the button that was clicked
   const btn = event.target;
+  const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = '...';
 
@@ -203,7 +237,6 @@ async function refine(engine, type) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Refinement failed');
 
-    // Update state and UI
     if (type === 'resume') {
       engineResults[engine].resume = data.markdown;
       engineResults[engine].resumeFilename = data.filename;
@@ -214,18 +247,14 @@ async function refine(engine, type) {
       engineResults[engine].coverLetterPdfName = data.pdfName;
     }
     
-    // Refresh the view (simplest way)
     showAllResults(engineResults);
   } catch (err) {
     showError(err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Refine';
+    btn.textContent = originalText;
   }
 }
-
-// Make refine global so onclick works
-window.refine = refine;
 
 function showLoading(show) {
   if (show) {
