@@ -12,10 +12,12 @@ High-impact Software Engineer with 15+ years of experience and a Ph.D. in Mathem
 ## Core Competencies
 
 - **AI & Productivity**: Claude Code, GitHub Copilot, OpenAI Codex, Prompt Engineering
-- **Backend & Architecture**: .NET 8/9, C#, ASP.NET Web API, RESTful Services, Distributed Systems
-- **Frontend & UI**: Angular 18+, TypeScript, JavaScript, Responsive Web Design, C/C++, Java
-- **Data Management**: SQL Server (15+ years), Schema Design, Performance Tuning, T-SQL
-- **DevOps & Delivery**: Jenkins, Gerrit, Docker, CI/CD Pipelines, Feature Flags, Playwright
+- **Languages**: C#, TypeScript, JavaScript, Python, C/C++, Java, T-SQL
+- **Backend & Architecture**: .NET 8/9, ASP.NET Web API, Node.js, RESTful Services, Distributed Systems
+- **Frontend & UI**: Angular, React, Responsive Web Design
+- **Cloud & Data**: AWS, Azure, SQL Server (15+ years), Schema Design, Performance Tuning
+- **Testing**: NUnit, xUnit, Playwright, Unit Testing, Integration Testing
+- **DevOps & Delivery**: Jenkins, GitHub Actions, Gerrit, Docker, CI/CD Pipelines, Feature Flags
 - **Management & Agile**: Jira, Confluence, Scrum/Agile Leadership, End-to-End Feature Ownership
 
 ## Professional Experience
