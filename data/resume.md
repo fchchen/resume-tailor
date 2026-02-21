@@ -20,7 +20,7 @@ High-impact Software Engineer with 15+ years of experience and a Ph.D. in Mathem
 
 ## Professional Experience
 
-### Senior Software Engineer | Criteo | July 2021 – January 2026
+### Senior Software Engineer | Criteo | July 2021 – January 2026 | Ann Arbor, Michigan
 
 Revolutionized engineering velocity by integrating AI-driven workflows into the retail media ecosystem, delivering complex configuration platforms with unprecedented speed and safety.
 
@@ -35,7 +35,7 @@ Revolutionized engineering velocity by integrating AI-driven workflows into the 
 - **4x Productivity Leap**: Successfully integrated AI tooling to automate boilerplate, unit testing, and refactoring, allowing the team to meet aggressive timelines without increasing headcount.
 - **End-to-End Ownership**: Led the development of high-scale retailer-facing features from initial technical discovery to final global deployment.
 
-### Senior Software Engineer | Clarivate | September 2015 – July 2021
+### Senior Software Engineer | Thomson Reuters, CPA Global, Clarivate | September 2015 – July 2021 | Bingham Farms, Michigan
 
 Transformed legacy legal-tech infrastructure into high-performance automated systems, reducing critical processing times from days to minutes.
 
