@@ -1,0 +1,105 @@
+.result-panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 0;
+  }
+}
+
+.download-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.download-btn {
+  color: #fff;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.docx-btn {
+  background: #059669;
+
+  &:hover {
+    background: #047857;
+  }
+}
+
+.pdf-btn {
+  background: #dc2626;
+
+  &:hover {
+    background: #b91c1c;
+  }
+}
+
+.preview {
+  padding: 1.5rem;
+  max-height: 600px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.refine-error {
+  color: #dc2626;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.refine-section {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+
+  textarea {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+  }
+}
+
+.refine-btn {
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &:hover {
+    background: #6d28d9;
+  }
+
+  &:disabled {
+    background: #c4b5fd;
+    cursor: not-allowed;
+  }
+}

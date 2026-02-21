@@ -21,7 +21,7 @@ if (!fsSync.existsSync(OUTPUT_DIR)) {
 }
 
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'web', 'dist', 'web', 'browser')));
 
 // Helper to sanitize filenames
 function sanitizeFilename(name) {
@@ -258,6 +258,11 @@ app.get('/api/download/:filename', async (req, res) => {
   } catch (err) {
     res.status(404).json({ error: 'File not found' });
   }
+});
+
+// SPA fallback — serve Angular index.html for non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'web', 'dist', 'web', 'browser', 'index.html'));
 });
 
 app.listen(PORT, () => {

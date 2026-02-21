@@ -1,0 +1,35 @@
+<div class="result-panel">
+  <div class="panel-header">
+    <h2>{{ title }}</h2>
+    <div class="download-group">
+      @if (docxFilename) {
+        <a [href]="docxUrl" class="download-btn docx-btn">DOCX</a>
+      }
+      @if (pdfFilename) {
+        <a [href]="pdfUrl" class="download-btn pdf-btn">PDF</a>
+      }
+    </div>
+  </div>
+
+  <div class="preview">{{ markdown }}</div>
+
+  @if (refineError(); as err) {
+    <p class="refine-error">{{ err }}</p>
+  }
+
+  <div class="refine-section">
+    <textarea
+      [(ngModel)]="feedback"
+      rows="2"
+      placeholder="Feedback..."
+      [disabled]="isRefining()"
+    ></textarea>
+    <button
+      class="refine-btn"
+      (click)="refine()"
+      [disabled]="isRefining() || !feedback.trim()"
+    >
+      {{ isRefining() ? '...' : 'Refine' }}
+    </button>
+  </div>
+</div>

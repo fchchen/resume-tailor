@@ -1,0 +1,87 @@
+<div class="container">
+  <h1>Resume Tailor</h1>
+  <p class="subtitle">Paste a job description to generate a tailored resume and cover letter.</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="form-card">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="jobTitle">Job Title</label>
+        <input id="jobTitle" formControlName="jobTitle" />
+      </div>
+      <div class="form-group">
+        <label for="company">Company</label>
+        <input id="company" formControlName="company" placeholder="Acme Corp (Auto-filled if URL used)" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="baseResume">Base Resume</label>
+        <select id="baseResume" formControlName="baseResume">
+          @for (file of dataFiles(); track file) {
+            <option [value]="file">{{ file }}</option>
+          }
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="baseCoverLetter">Base Cover Letter</label>
+        <select id="baseCoverLetter" formControlName="baseCoverLetter">
+          @for (file of dataFiles(); track file) {
+            <option [value]="file">{{ file }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group" formGroupName="engines">
+      <label>AI Engines (Select multiple for comparison)</label>
+      <div class="checkbox-group">
+        <label><input type="checkbox" formControlName="claude" /> Claude</label>
+        <label><input type="checkbox" formControlName="gemini" /> Gemini</label>
+        <label><input type="checkbox" formControlName="codex" /> Codex</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="jobUrl">
+        Job URL (Optional, will fetch JD if provided)
+        @if (isScraping()) {
+          <span class="fetching"> (Fetching...)</span>
+        }
+      </label>
+      <input id="jobUrl" type="url" formControlName="jobUrl" placeholder="https://example.com/jobs/123" (blur)="onJobUrlBlur()" />
+    </div>
+
+    <div class="form-group">
+      <label for="jobDescription">Job Description</label>
+      <textarea id="jobDescription" formControlName="jobDescription" rows="5" placeholder="Paste the full job description here... (Not needed if URL is provided)"></textarea>
+    </div>
+
+    <button type="submit" [disabled]="isLoading()">
+      {{ isLoading() ? 'Generating...' : 'Generate' }}
+    </button>
+  </form>
+
+  @if (isLoading()) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Generating tailored documents... This may take a minute.</p>
+    </div>
+  }
+
+  @if (error(); as message) {
+    <div class="error">{{ message }}</div>
+  }
+
+  @if (hasResults) {
+    <div class="results">
+      @for (entry of engineEntries; track entry[0]) {
+        <app-engine-result
+          [engineName]="entry[0]"
+          [result]="entry[1]"
+          (refinedResult)="onRefined($event)"
+        />
+      }
+    </div>
+  }
+</div>

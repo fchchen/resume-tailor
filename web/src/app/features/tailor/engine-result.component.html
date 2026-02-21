@@ -1,0 +1,28 @@
+<div class="engine-result">
+  <h3 class="engine-title">{{ engineName }}</h3>
+
+  @if (result.error) {
+    <p class="error">Error: {{ result.error }}</p>
+  } @else {
+    <div class="results-grid">
+      <app-result-panel
+        title="Tailored Resume"
+        [markdown]="result.resume || ''"
+        [docxFilename]="result.resumeFilename || ''"
+        [pdfFilename]="result.resumePdfName || ''"
+        [engine]="engineName"
+        type="resume"
+        (refined)="onResumeRefined($event)"
+      />
+      <app-result-panel
+        title="Cover Letter"
+        [markdown]="result.coverLetter || '(No cover letter generated)'"
+        [docxFilename]="result.coverLetterFilename || ''"
+        [pdfFilename]="result.coverLetterPdfName || ''"
+        [engine]="engineName"
+        type="coverLetter"
+        (refined)="onCoverLetterRefined($event)"
+      />
+    </div>
+  }
+</div>
