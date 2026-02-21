@@ -4,7 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "npm run build:web && node server.js",
     "test": "node test-unit.js && node test-scraper.js",
     "dev:web": "cd web && npm start",
     "build:web": "cd web && npm run build",
