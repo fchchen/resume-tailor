@@ -261,7 +261,7 @@ app.get('/api/download/:filename', async (req, res) => {
 });
 
 // SPA fallback — serve Angular index.html for non-API routes
-app.get('*', (req, res) => {
+app.get('*path', (req, res) => {
   res.sendFile(path.join(__dirname, 'web', 'dist', 'web', 'browser', 'index.html'));
 });
 

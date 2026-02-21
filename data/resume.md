@@ -1,7 +1,7 @@
 # Feng Chen, Ph.D.
 
 [LinkedIn](https://www.linkedin.com/in/feng-chen-fc) | [GitHub](https://github.com/fchchen)
-fchchen@gmail.com | (408) 504-6321 | Rochester Hills, MI
+fchchen@gmail.com | (408) 504-6321 | Rochester Hills, MI | US Citizen
 
 ## Senior Software Engineer | Technical Project Lead
 
